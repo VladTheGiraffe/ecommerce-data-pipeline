@@ -66,29 +66,21 @@ def get_full_receipt(sku, conn):
     }
 
 
-def get_player_margins():
+def get_player_margins(conn):
     #Connect to database
-    conn = psycopg.connect(
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT"),
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD")
-    )
-
-    #Create the cursor
-    cur = conn.cursor()
-
-    #Write the query
-    query = """
-        SELECT 
-            l.player_name, SUM((s.sale_price + s.shipping_charged) - (l.allocated_cost + s.shipping_cost + s.ebay_fees)) AS total_profit
-        FROM 
-            sports_cards.sales s
-        JOIN 
-            sports_cards. listings l ON s.sku = l.sku
-        GROUP BY
-            l.player_name
-        """
+    with conn.cursor() as cur:
+        #Write the query
+        query = """
+            SELECT 
+                l.player_name, SUM((s.sale_price + s.shipping_charged) - (l.allocated_cost + s.shipping_cost + s.ebay_fees)) AS total_profit
+            FROM 
+                sports_cards.sales s
+            JOIN 
+                sports_cards. listings l ON s.sku = l.sku
+            GROUP BY
+                l.player_name
+            """
+        
+        cur.execute(query)
+        return cur.fetchall()
     
-    cur.execute(query())
