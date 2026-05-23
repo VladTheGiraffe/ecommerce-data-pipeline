@@ -85,3 +85,20 @@ def get_player_margins(conn):
         cur.execute(query)
         return cur.fetchall()
     
+def clean_money(raw_string):
+    if raw_string is None:
+        return 0.0
+    
+    clean_str = str(raw_string).strip()
+
+    if clean_str in ["", "--", "-"]:
+        return 0.0
+    
+    clean_str = clean_str.replace("$", "").replace(",", "").replace("US", "")
+
+    try:
+        return float(clean_str)
+    except ValueError:
+        print(f"ENGINE CRASH: Could not convert this exact text to a number: '{raw_string}'")
+        return 0.0
+    

@@ -3,7 +3,7 @@ import csv
 import streamlit as st
 import os 
 from dotenv import load_dotenv
-from roi_engine import get_full_receipt, get_database_connection, get_player_margins
+from roi_engine import get_full_receipt, get_database_connection, get_player_margins, clean_money
 
 load_dotenv()
 
@@ -47,14 +47,53 @@ with st.form(key="sku_form"):
 #----CSV Upload----
 uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
 if uploaded_file is not None: 
-      raw_text = uploaded_file.getvalue().decode("utf-8")
-      virtual_file = io.StringIO(raw_text)
-      next(virtual_file)  # Skip header row
-      reader = csv.DictReader(virtual_file)
-      for row in reader:
-            raw_price = row['Sold For']
-            if raw_price == "":
-                 clean_price = 0.0
-            else:
-                clean_price = float(raw_price.replace("$", "").replace(",", ""))
-            st.write(f"Cleaned Price: {clean_price}")
+    raw_text = uploaded_file.getvalue().decode("utf-8")
+    virtual_file = io.StringIO(raw_text)
+    for _ in range(11):
+        next(virtual_file)  # Skip header row
+    reader = csv.DictReader(virtual_file)
+    # 1. Create the empty Staging Area
+    transaction_staging = {}
+        
+    for row in reader:
+        order_num = row.get('Order number', '')
+            
+            
+        if not order_num or order_num == "":
+            continue
+                    
+            
+        if order_num not in transaction_staging:
+            transaction_staging[order_num] = {
+                "Title": "Unknown",
+                "SKU": "Unknown",
+                "Total Sold": 0.0,
+                "Total Shipping Collected": 0.0,
+                "Total Fees": 0.0,
+                "Total Shipping Paid": 0.0
+            }
+                
+                
+        if row.get('Item title', '') != "":
+            transaction_staging[order_num]["Title"] = row['Item title']
+                
+        if row.get('Custom label', '') != "": 
+            transaction_staging[order_num]["SKU"] = row['Custom label']
+                    
+                
+        transaction_staging[order_num]["Total Sold"] += clean_money(row.get('Item subtotal', ''))
+                
+        transaction_staging[order_num]["Total Shipping Collected"] += clean_money(row.get('Shipping and handling', ''))
+                
+                
+        fixed_fee = clean_money(row.get('Final Value Fee - fixed', ''))
+        variable_fee = clean_money(row.get('Final Value Fee - variable', ''))
+        transaction_staging[order_num]["Total Fees"] += (fixed_fee + variable_fee)
+                
+                
+        transaction_staging[order_num]["Total Shipping Paid"] += clean_money(row.get('Net amount', ''))
+
+        
+    st.write("--- FINAL AGGREGATED LEDGER ---")
+    for order_id, data in transaction_staging.items():
+        st.write(f"SKU: {data['SKU']} | Card: {data['Title']} | Sold: {data['Total Sold']} | Fees: {data['Total Fees']} | Label: {data['Total Shipping Paid']}")
