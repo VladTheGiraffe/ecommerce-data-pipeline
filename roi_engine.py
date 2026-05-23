@@ -13,6 +13,7 @@ def get_database_connection():
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD")
     )
+    return conn
 
 #Create the definition
 def get_full_receipt(sku, conn):
@@ -51,8 +52,8 @@ def get_full_receipt(sku, conn):
 
 
     #Run the math logic
-    total_revenue = float(sale_price) + float(shipping_charged)
-    total_expenses = float(allocated_cost) + float(shipping_cost) + float(ebay_fees)
+    total_revenue = sale_price + shipping_charged
+    total_expenses = allocated_cost + shipping_cost + ebay_fees
     true_profit = total_revenue - total_expenses
     roi_percentage = (true_profit / allocated_cost) * 100 if allocated_cost > 0 else 0
 
@@ -76,7 +77,7 @@ def get_player_margins(conn):
             FROM 
                 sports_cards.sales s
             JOIN 
-                sports_cards. listings l ON s.sku = l.sku
+                sports_cards.listings l ON s.sku = l.sku
             GROUP BY
                 l.player_name
             """
