@@ -85,20 +85,27 @@ def get_player_margins(conn):
         cur.execute(query)
         return cur.fetchall()
     
-def clean_money(raw_string):
-    if raw_string is None:
-        return 0.0
-    
-    clean_str = str(raw_string).strip()
+def get_unrealized_inventory(conn):
+    with conn.cursor() as cur:
+        query = """
+            SELECT
+                COUNT(l.sku) as total_unsold_items,
+                SUM(l.allocated_cost) as total_capital_locked
+            FROM
+                sports_cards.listings l
+            LEFT JOIN
+                sports_cards.sales s ON l.sku = s.sku
+            WHERE 
+                s.sku is not NULL;
+        """
 
-    if clean_str in ["", "--", "-"]:
-        return 0.0
-    
-    clean_str = clean_str.replace("$", "").replace(",", "").replace("US", "")
+        cur.execute(query)
+        data = cur.fetchone()
 
-    try:
-        return float(clean_str)
-    except ValueError:
-        print(f"ENGINE CRASH: Could not convert this exact text to a number: '{raw_string}'")
-        return 0.0
+    if data is None or data[0] == 0:
+        return {"item_count": 0, "capital_locked": 0.0}
+    return {
+        "item_count": data[0],
+        "capital_locked": float(data[1] if data[1] is not None else 0.0)
+    }
     

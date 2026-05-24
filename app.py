@@ -3,7 +3,7 @@ import csv
 import streamlit as st
 import os 
 from dotenv import load_dotenv
-from roi_engine import get_full_receipt, get_database_connection, get_player_margins, clean_money
+from roi_engine import get_full_receipt, get_database_connection, get_player_margins, get_unrealized_inventory
 
 load_dotenv()
 
@@ -23,6 +23,16 @@ with st.sidebar:
 #----Single Item Lookup----
 
 st.title("Sports Card ROI Dashboard")
+
+st.subheader("Current Portfolio Risk")
+inventory_data = get_unrealized_inventory(conn)
+colA, colB = st.columns(2)
+with colA:
+    st.metric(label="Active Inventory (Cards)", value=inventory_data['item_count'])
+with colB:
+    st.metric(label="Locked Capital", value=f"${inventory_data['capital_locked']:.2f}")
+st.divider()
+
 with st.form(key="sku_form"):
     lookup_sku = st.text_input("Enter inventory SKU:")
     submit_button = st.form_submit_button("Calculate True Profit")
