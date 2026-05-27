@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import json
 import requests
+import psycopg
 
 
 #Target URLs
@@ -28,9 +29,11 @@ def refresh_access_token():
 
 #Fetch Finances Function
 def fetch_finance_data(access_token):
-    target_url = "https://api.ebay.com/sell/finances/v1/transaction"
+    target_url = "https://apiz.ebay.com/sell/finances/v1/transaction"
     headers = {"Authorization": f"Bearer {access_token}"}
     response = requests.get(target_url, headers=headers)
+    print(f"API REQUEST: {response.status_code}")
+    print(response.text)
     raw_data = response.json()
     shipping_map = {}
     transactions_list = raw_data.get("transactions", [])
@@ -39,7 +42,7 @@ def fetch_finance_data(access_token):
             order_id = txn.get("orderId")
             label_cost = txn.get("amount", {}).get("value")
             shipping_map[order_id] = label_cost
-            return shipping_map
+    return shipping_map
     
 
 #Fetch Order Function
@@ -49,9 +52,9 @@ def fetch_ebay_data(access_token):
     raw_data = response.json()
     order_list = raw_data.get("orders", [])
     
+    clean_orders = []
     for order in order_list:
         sku = order.get("lineItems", [])[0].get("sku")
-        clean_orders = []
         if sku is None:
             continue
         sku = "VTG" + sku[3:].zfill(4)
@@ -60,21 +63,54 @@ def fetch_ebay_data(access_token):
         ebay_fees = float(order.get("totalMarketplaceFee", {}).get("value", "0.00"))
         shipping_cost = 0.00
         date_sold = order.get("creationDate")[:10]
+        order_id = order.get("orderId")
         order_data = {
             "sku": sku,
             "sale_price": sale_price,
             "shipping_charged": shipping_charged,
             "ebay_fees": ebay_fees,
             "shipping_cost": None,
-            "date_sold": date_sold
+            "date_sold": date_sold,
+            "order_id": order_id
         }
         clean_orders.append(order_data)
-        return clean_orders
+    return clean_orders
         
-
-        print(f"SKU: {sku} | Sold For: ${sale_price:.2f} | Shipping Collected: ${shipping_charged:.2f} | Ebay Fees: ${ebay_fees:.2f} | Shipping Paid: ${shipping_cost:.2f} | Date Sold: {date_sold}")
+#Import to Database Function
+def load_to_postgres(payload):
+    conn = psycopg.connect(
+        host=os.getenv("DB_HOST"),
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        port=os.getenv("DB_PORT")
+    )
+    cur = conn.cursor()
+    for order in payload:
+        cur.execute("""
+            INSERT INTO sports_cards.sales
+            (sku, sale_price, shipping_charged, ebay_fees, shipping_cost, date_sold)
+            VALUES
+            (%s, %s, %s, %s, %s, %s)           
+        """, (
+            order['sku'],
+            order['sale_price'],
+            order['shipping_charged'],
+            order['ebay_fees'],
+            order['shipping_cost'],
+            order['date_sold']
+        ))
+    cur.commit()
+    cur.close()
+    conn.close()
 
 #Execution Block
 fresh_token = refresh_access_token()
 finance_payload = fetch_finance_data(fresh_token)
 fulfillment_payload = fetch_ebay_data(fresh_token)
+for order in fulfillment_payload:
+    order_id = order.get("order_id")
+    actual_cost = finance_payload.get(order_id, 0.00)
+    order["shipping_cost"] = float(actual_cost)
+    print(f"Successfully processed {len(fulfillment_payload)} orders.")
+load_to_postgres(fulfillment_payload)
