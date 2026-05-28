@@ -54,26 +54,28 @@ def fetch_ebay_data(access_token):
     
     clean_orders = []
     for order in order_list:
-        sku = order.get("lineItems", [])[0].get("sku")
-        if sku is None:
-            continue
-        sku = "VTG" + sku[3:].zfill(4)
-        sale_price = float(order.get("lineItems", [])[0].get("value", "0.00"))
-        shipping_charged = float(order.get("lineItems", [])[0].get("deliveryCost", {}).get("shippingCost", {}).get("value", "0.00"))
-        ebay_fees = float(order.get("totalMarketplaceFee", {}).get("value", "0.00"))
-        shipping_cost = 0.00
-        date_sold = order.get("creationDate")[:10]
         order_id = order.get("orderId")
-        order_data = {
-            "sku": sku,
-            "sale_price": sale_price,
-            "shipping_charged": shipping_charged,
-            "ebay_fees": ebay_fees,
-            "shipping_cost": None,
-            "date_sold": date_sold,
-            "order_id": order_id
-        }
-        clean_orders.append(order_data)
+        date_sold = order.get("creationDate")[:10]
+        ebay_fees = float(order.get("totalMarketplaceFee", {}).get("value", 0.00))
+        shipping_cost = 0.00
+        for item in order.get("lineItems", []):
+            sku = item.get("sku")
+            if sku is None:
+                continue
+            sku = "VTG" + sku[3:].zfill(4)
+            sale_price = float(item.get("netPrice", {}).get("value", "0.00"))
+            shipping_charged = float(item.get("deliveryCost", {}).get("shippingCost", {}).get("value", "0.00"))
+
+            order_data = {
+                "sku": sku,
+                "sale_price": sale_price,
+                "shipping_charged": shipping_charged,
+                "ebay_fees": ebay_fees,
+                "shipping_cost": None,
+                "date_sold": date_sold,
+                "order_id": order_id
+            }
+            clean_orders.append(order_data)
     return clean_orders
         
 #Import to Database Function
@@ -100,7 +102,7 @@ def load_to_postgres(payload):
             order['shipping_cost'],
             order['date_sold']
         ))
-    cur.commit()
+    conn.commit()
     cur.close()
     conn.close()
 
