@@ -5,6 +5,7 @@ load_dotenv()
 import json
 import requests
 import psycopg
+from datetime import datetime, timedelta
 
 
 #Target URLs
@@ -31,7 +32,15 @@ def refresh_access_token():
 def fetch_finance_data(access_token):
     target_url = "https://apiz.ebay.com/sell/finances/v1/transaction"
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get(target_url, headers=headers)
+    now = datetime.utcnow()
+    thirty_days_ago = now - timedelta(days=30)
+    end_date = now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    start_time = thirty_days_ago.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    params = {
+        "filter": f"transactionDate:[{start_time}..{end_date}]",
+        "limit": "100"
+    }
+    response = requests.get(target_url, headers=headers, params=params)
     print(f"API REQUEST: {response.status_code}")
     print(response.text)
     raw_data = response.json()
@@ -53,6 +62,7 @@ def fetch_ebay_data(access_token):
     order_list = raw_data.get("orders", [])
     
     clean_orders = []
+    print(f"DEBUG: Raw Orders Received from API: {len(order_list)}")
     for order in order_list:
         order_id = order.get("orderId")
         date_sold = order.get("creationDate")[:10]
@@ -63,7 +73,7 @@ def fetch_ebay_data(access_token):
             if sku is None:
                 continue
             sku = "VTG" + sku[3:].zfill(4)
-            sale_price = float(item.get("netPrice", {}).get("value", "0.00"))
+            sale_price = float(item.get("lineItemCost", {}).get("value", "0.00"))
             shipping_charged = float(item.get("deliveryCost", {}).get("shippingCost", {}).get("value", "0.00"))
 
             order_data = {
@@ -76,6 +86,8 @@ def fetch_ebay_data(access_token):
                 "order_id": order_id
             }
             clean_orders.append(order_data)
+    print((f"Debug: Clean items successfully packaged: {len(clean_orders)}"))
+    print(f"DEBUG first item: {clean_orders[0]}")
     return clean_orders
         
 #Import to Database Function
