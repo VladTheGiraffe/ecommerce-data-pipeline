@@ -15,6 +15,7 @@ endpoint_url = "https://api.ebay.com/sell/fulfillment/v1/order"
 #Assign Global Variables
 app_id=os.getenv("EBAY_APP_ID")
 cert_id=os.getenv("EBAY_CERT_ID")
+DB_URI=os.getenv("DB_CONNECTION_STRING")
 
 
 #Refresh The Token
@@ -92,13 +93,7 @@ def fetch_ebay_data(access_token):
         
 #Import to Database Function
 def load_to_postgres(payload):
-    conn = psycopg.connect(
-        host=os.getenv("DB_HOST"),
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        port=os.getenv("DB_PORT")
-    )
+    conn = psycopg.connect(DB_URI)
     cur = conn.cursor()
     for order in payload:
         cur.execute("""
