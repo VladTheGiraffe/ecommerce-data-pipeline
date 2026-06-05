@@ -97,7 +97,7 @@ def load_to_postgres(payload):
     cur = conn.cursor()
     for order in payload:
         cur.execute("""
-            INSERT INTO sports_cards.sales
+            INSERT INTO public.sales
             (sku, sale_price, shipping_charged, ebay_fees, shipping_cost, date_sold)
             VALUES
             (%s, %s, %s, %s, %s, %s)           
