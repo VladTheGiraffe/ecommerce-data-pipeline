@@ -27,6 +27,6 @@ jobs:
         env:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           EBAY_APP_ID: ${{ secrets.EBAY_APP_ID }}
-          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          EBAY_CERT_ID: ${{ secrets.EBAY_CERT_ID }}
           EBAY_REFRESH_TOKEN: ${{ secrets.EBAY_REFRESH_TOKEN }}
         run: python ebay_extractor.py
