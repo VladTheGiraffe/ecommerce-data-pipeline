@@ -100,7 +100,8 @@ def load_to_postgres(payload):
             INSERT INTO public.sales
             (sku, sale_price, shipping_charged, ebay_fees, shipping_cost, date_sold)
             VALUES
-            (%s, %s, %s, %s, %s, %s)           
+            (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (sku) DO NOTHING           
         """, (
             order['sku'],
             order['sale_price'],
